@@ -334,7 +334,7 @@ Copy any of these into your AI coding assistant after setup. Each one runs a ful
 
 > "Make a 90-second animated explainer about quantum computing for middle school students, with a fun narrator voice and custom soundtrack"
 
-Want more? See the full **[Prompt Gallery](PROMPT_GALLERY.md)** for tested prompts with expected costs and output examples, or run `make demo` to render zero-key demo videos instantly.
+Want more? See the full **[Prompt Gallery](PROMPT_GALLERY.md)** for tested prompts with expected costs and output examples, or run `make demo` to render zero-key demo videos instantly. If Remotion can't download its own Chrome (sandboxes, CI, restricted networks), set `REMOTION_BROWSER_EXECUTABLE=/path/to/chrome` or pass `--browser-executable` to `render_demo.py`.
 
 ---
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -73,7 +74,9 @@ def validate_props_file(path: Path) -> None:
         raise SystemExit(f"Error: {path} must define at least one cut.")
 
 
-def render_demo(name: str, props_path: Path, npx_cmd: str) -> None:
+def render_demo(
+    name: str, props_path: Path, npx_cmd: str, browser_executable: str | None = None
+) -> None:
     validate_props_file(props_path)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     output_path = OUTPUT_DIR / f"{name}.mp4"
@@ -84,22 +87,24 @@ def render_demo(name: str, props_path: Path, npx_cmd: str) -> None:
     print(f"Output:    {output_path}")
     print()
 
-    subprocess.run(
-        [
-            npx_cmd,
-            "remotion",
-            "render",
-            "src/index.tsx",
-            "Explainer",
-            str(output_path),
-            "--props",
-            str(props_path),
-            "--codec",
-            "h264",
-        ],
-        cwd=COMPOSER_DIR,
-        check=True,
-    )
+    command = [
+        npx_cmd,
+        "remotion",
+        "render",
+        "src/index.tsx",
+        "Explainer",
+        str(output_path),
+        "--props",
+        str(props_path),
+        "--codec",
+        "h264",
+    ]
+    if browser_executable:
+        # Use an existing Chrome/Chromium instead of letting Remotion download one
+        # (needed in sandboxes and CI that block remotion.media).
+        command += ["--browser-executable", browser_executable]
+
+    subprocess.run(command, cwd=COMPOSER_DIR, check=True)
 
     if output_path.exists():
         size_mb = output_path.stat().st_size / (1024 * 1024)
@@ -114,6 +119,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("demo", nargs="?", help="Render one named demo instead of all demos.")
     parser.add_argument("--list", action="store_true", help="List available demo fixtures and exit.")
+    parser.add_argument(
+        "--browser-executable",
+        default=os.environ.get("REMOTION_BROWSER_EXECUTABLE"),
+        help=(
+            "Path to an existing Chrome/Chromium for Remotion to use instead of downloading "
+            "its own. Defaults to $REMOTION_BROWSER_EXECUTABLE."
+        ),
+    )
     args = parser.parse_args(argv)
 
     demos = discover_demos()
@@ -131,11 +144,14 @@ def main(argv: list[str] | None = None) -> int:
         available = ", ".join(demos)
         raise SystemExit(f"Unknown demo '{args.demo}'. Available demos: {available}")
 
+    if args.browser_executable and not Path(args.browser_executable).is_file():
+        raise SystemExit(f"Error: browser executable not found: {args.browser_executable}")
+
     npx_cmd = ensure_demo_environment()
     selected = {args.demo: demos[args.demo]} if args.demo else demos
 
     for name, props_path in selected.items():
-        render_demo(name, props_path, npx_cmd)
+        render_demo(name, props_path, npx_cmd, args.browser_executable)
 
     return 0
 
